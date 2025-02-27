@@ -1500,6 +1500,20 @@ TEST(TestDecimalMeanPartialKernel, SimpleMeanPartial) {
   // }
 }
 
+TEST(TestDecimalMeanFinalKernel, SimpleMeanFinal) {
+  ScalarAggregateOptions options(/*skip_nulls=*/true, /*min_count=*/0);
+
+  // for (const auto& ty : {decimal128(3, 2), decimal256(3, 2)}) {
+  auto input_type = struct_({field("avg", float64()), field("count", int64())});
+  auto output_type = float64();
+  EXPECT_THAT(MeanFinal(ArrayFromJSON(input_type, R"(
+                                      [{"avg": 12.0, "count": 3},
+                                       {"avg": 6.0, "count": 3},
+                                       {"avg": 0.0, "count": 3}])")),
+              ResultWith(ScalarFromJSON(output_type, R"(2.0)")));
+  // }
+}
+
 TEST(TestNullMeanKernel, Basics) {
   auto ty = null();
   Datum null_result = std::make_shared<DoubleScalar>();
@@ -3665,7 +3679,8 @@ class TestPrimitiveQuantileKernel : public ::testing::Test {
 #define INTYPE(x) Datum(static_cast<typename TypeParam::c_type>(x))
 #define DOUBLE(x) Datum(static_cast<double>(x))
 // output type per interpolation: linear, lower, higher, nearest, midpoint
-#define O(a, b, c, d, e) {DOUBLE(a), INTYPE(b), INTYPE(c), INTYPE(d), DOUBLE(e)}
+#define O(a, b, c, d, e) \
+  { DOUBLE(a), INTYPE(b), INTYPE(c), INTYPE(d), DOUBLE(e) }
 
 template <typename ArrowType>
 class TestIntegerQuantileKernel : public TestPrimitiveQuantileKernel<ArrowType> {};
