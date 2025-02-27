@@ -90,6 +90,22 @@ TEST(GroupByConvenienceFunc, Basic) {
                                     {"key1"}));
   AssertTablesEqual(*expected, *actual);
 
+  // One key, two aggregates, hash_mean_final
+  auto partial_expected = expected;
+  expected = TableFromJSON(schema({field("key1", utf8()), field("key2_avg", float64()),
+                                   field("value_avg", float64())}),
+                           {R"([
+        ["x", 1.0, 1.0],
+        ["y", 1.5, 2.5],
+        ["z", 2.0, 4.5]
+    ])"});
+  ASSERT_OK_AND_ASSIGN(actual,
+                       TableGroupBy(partial_expected,
+                                    {{"hash_mean_final", {"key2_avg"}, "key2_avg"},
+                                     {"hash_mean_final", {"value_avg"}, "value_avg"}},
+                                    {"key1"}));
+  AssertTablesEqual(*expected, *actual);
+
   // Two keys, one aggregate
   expected = TableFromJSON(schema({field("key1", utf8()), field("key2", int32()),
                                    field("value_sum", int64())}),
