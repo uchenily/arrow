@@ -51,8 +51,5 @@
     "zlib",
     "zstd"
   ],
-  "overrides": [
-    { "name": "gtest", "version": "1.10.0", "port-version": 4 }
-  ],
   "builtin-baseline": "d5ec528843d29e3a52d745a64b469f810b2cedbf"
 }
