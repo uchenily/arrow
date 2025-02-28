@@ -334,6 +334,63 @@ struct Multiply {
   }
 };
 
+struct Modulo {
+  template <typename T, typename Arg0, typename Arg1>
+  static enable_if_floating_value<T> Call(KernelContext*, Arg0 left, Arg1 right,
+                                          Status* st) {
+    *st = Status::Invalid("not implemented");
+    return 0;
+  }
+
+  template <typename T, typename Arg0, typename Arg1>
+  static enable_if_integer_value<T> Call(KernelContext*, Arg0 left, Arg1 right,
+                                         Status* st) {
+    if (ARROW_PREDICT_FALSE(right == 0)) {
+      *st = Status::Invalid("divide by zero");
+      return 0;
+    }
+    return left % right;
+  }
+
+  template <typename T, typename Arg0, typename Arg1>
+  static enable_if_decimal_value<T> Call(KernelContext*, Arg0 left, Arg1 right,
+                                         Status* st) {
+    if (ARROW_PREDICT_FALSE(right == 0)) {
+      *st = Status::Invalid("divide by zero");
+      return 0;
+    }
+    return left % right;
+  }
+};
+
+// struct ModuloChecked {
+//   // template <typename T, typename Arg0, typename Arg1>
+//   // static enable_if_floating_point<T> Call(KernelContext*, Arg0 left, Arg1 right,
+//   //                                         Status*) {
+//   //   return std::fmod(left, right);
+//   // }
+//
+//   template <typename T, typename Arg0, typename Arg1>
+//   static enable_if_integer_value<T> Call(KernelContext*, Arg0 left, Arg1 right,
+//                                          Status* st) {
+//     if (ARROW_PREDICT_FALSE(right == 0)) {
+//       *st = Status::Invalid("divide by zero");
+//       return 0;
+//     }
+//     return left % right;
+//   }
+//
+//   // template <typename T, typename Arg0, typename Arg1>
+//   // static enable_if_decimal_value<T> Call(KernelContext*, Arg0 left, Arg1 right,
+//   //                                        Status* st) {
+//   //   if (ARROW_PREDICT_FALSE(right == 0)) {
+//   //     *st = Status::Invalid("divide by zero");
+//   //     return 0;
+//   //   }
+//   //   return left % right;
+//   // }
+// };
+
 struct MultiplyChecked {
   template <typename T, typename Arg0, typename Arg1>
   static enable_if_integer_value<T> Call(KernelContext*, Arg0 left, Arg1 right,

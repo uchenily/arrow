@@ -674,6 +674,9 @@ void AddDecimalBinaryKernels(const std::string& name, ScalarFunction* func) {
     out_type = OutputType(ResolveDecimalMultiplicationOutput);
   } else if (op == "divide") {
     out_type = OutputType(ResolveDecimalDivisionOutput);
+  } else if (op == "modulo") {
+    // FIXME
+    out_type = OutputType(ResolveDecimalDivisionOutput);
   } else {
     DCHECK(false);
   }
@@ -763,7 +766,8 @@ struct ArithmeticFunction : ScalarFunction {
         return CastBinaryDecimalArgs(DecimalPromotion::kAdd, types);
       } else if (op == "multiply") {
         return CastBinaryDecimalArgs(DecimalPromotion::kMultiply, types);
-      } else if (op == "divide") {
+      } else if (op == "divide" || op == "modulo") {
+        // FIXME
         return CastBinaryDecimalArgs(DecimalPromotion::kDivide, types);
       } else {
         return Status::Invalid("Invalid decimal function: ", func_name);
@@ -1121,6 +1125,20 @@ const FunctionDoc sub_checked_doc{
     ("This function returns an error on overflow.  For a variant that\n"
      "doesn't fail on overflow, use function \"subtract\"."),
     {"x", "y"}};
+
+const FunctionDoc modulo_doc{
+    "Calculate the modulo of dividing two values",
+    ("Integer division by zero returns an error. However, integer overflow\n"
+     "wraps around, and floating-point division by zero returns an infinite.\n"
+     "Use function \"modulo_checked\" if you want to get an error\n"
+     "in all the aforementioned cases."),
+    {"dividend", "divisor"}};
+
+const FunctionDoc modulo_checked_doc{
+    "Calculate the modulo of dividing two values",
+    ("An error is returned when trying to divide by zero, or when\n"
+     "integer overflow is encountered."),
+    {"dividend", "divisor"}};
 
 const FunctionDoc mul_doc{"Multiply the arguments element-wise",
                           ("Results will wrap around on integer overflow.\n"
@@ -1618,6 +1636,18 @@ void RegisterScalarArithmetic(FunctionRegistry* registry) {
   AddArithmeticFunctionTimeDuration<SubtractTimeDurationChecked>(subtract_checked);
 
   DCHECK_OK(registry->AddFunction(std::move(subtract_checked)));
+
+  // ----------------------------------------------------------------------
+  auto modulo = MakeArithmeticFunctionNotNull<Modulo>("modulo", modulo_doc);
+  AddDecimalBinaryKernels<Modulo>("modulo", modulo.get());
+  DCHECK_OK(registry->AddFunction(std::move(modulo)));
+
+  // ----------------------------------------------------------------------
+  // auto modulo_checked =
+  //     MakeArithmeticFunctionNotNull<ModuloChecked>("modulo_checked",
+  //     modulo_checked_doc);
+  // AddDecimalBinaryKernels<Modulo>("modulo_checked", modulo_checked.get());
+  // DCHECK_OK(registry->AddFunction(std::move(modulo_checked)));
 
   // ----------------------------------------------------------------------
   auto multiply = MakeArithmeticFunction<Multiply>("multiply", mul_doc);
