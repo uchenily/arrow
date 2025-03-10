@@ -789,6 +789,7 @@ struct GroupedMeanImpl
     return static_cast<MeanType>(reduced) / count;
   }
 
+  // GroupedMeanImpl::Finish()
   static Result<std::shared_ptr<Buffer>> Finish(MemoryPool* pool,
                                                 const ScalarAggregateOptions& options,
                                                 const int64_t* counts,
@@ -884,6 +885,7 @@ struct GroupedMeanPartialImpl
     return static_cast<MeanType>(reduced) / count;
   }
 
+  // GroupedMeanImpl::Finish()
   static Result<std::shared_ptr<Buffer>> Finish(MemoryPool* pool,
                                                 const ScalarAggregateOptions& options,
                                                 const int64_t* counts,
@@ -912,6 +914,7 @@ struct GroupedMeanPartialImpl
     return values;
   }
 
+  // Based on GroupedReducingAggregator::Finalize()
   Result<Datum> Finalize() override {
     std::shared_ptr<Buffer> null_bitmap = nullptr;
     const int64_t* counts = Base::counts_.data();
@@ -933,22 +936,24 @@ struct GroupedMeanPartialImpl
       }
     }
 
-    // base::out_type()
-    auto avg_array =
-        ArrayData::Make(Base::out_type(), Base::num_groups_, {null_bitmap, nullptr});
-    // int64()
-    auto count_array =
-        ArrayData::Make(int64(), Base::num_groups_, {null_bitmap, nullptr});
-
     // https://arrow.apache.org/docs/format/Intro.html
     // buffer[0]: bitmap
     // buffer[1]: values
-    avg_array->buffers[1] = std::move(values);
-    ARROW_ASSIGN_OR_RAISE(count_array->buffers[1], Base::counts_.Finish());
+
+    // base::out_type()
+    auto avg_array =
+        ArrayData::Make(Base::out_type(), Base::num_groups_, {null_bitmap, values});
+    // int64()
+    auto count_array = ArrayData::Make(
+        int64(), Base::num_groups_, {null_bitmap, Base::counts_.Finish().ValueUnsafe()});
 
     // (avg, count)
-    return ArrayData::Make(out_type(), Base::num_groups_, {nullptr},
-                           /*child_data=*/{std::move(avg_array), std::move(count_array)});
+    return ArrayData::Make(/*type*/ out_type(),
+                           /*length*/ Base::num_groups_,
+                           /*buffers*/ {nullptr},
+                           /*child_data=*/{std::move(avg_array), std::move(count_array)},
+                           /*null_count*/ null_count,
+                           /*offset*/ 0);
   }
 
   std::shared_ptr<DataType> out_type() const override {
@@ -983,10 +988,23 @@ template <typename Arg0Type, typename Arg1Type, typename ConsumeValue,
 typename arrow::internal::call_traits::enable_if_return<ConsumeValue, void>::type
 VisitGroupedTwoValues(const ExecSpan& batch, ConsumeValue&& valid_func,
                       ConsumeNull&& null_func) {
+  // ExecBatch
+  //     # Rows: N
+  //     0: Array-- is_valid: all not null
+  // -- child 0 type: double
+  // -- child 1 type: int64
+  //     1:
+  //     Array[0,1,2,3, ..., N-1]
   auto g = batch[1].array.GetValues<uint32_t>(1);
   if (batch[0].is_array()) {
+    auto sliced_length = batch[1].array.length;
+    auto array_span0 =
+        batch[0].array.child_data[0].ToArrayData()->Slice(*g, sliced_length);
+    auto array_span1 =
+        batch[0].array.child_data[1].ToArrayData()->Slice(*g, sliced_length);
     VisitTwoArrayValuesInline<Arg0Type, Arg1Type>(
-        batch[0].array.child_data[0], batch[0].array.child_data[1],
+        // batch[0].array.child_data[0], batch[0].array.child_data[1],
+        *array_span0, *array_span1,
         [&](typename TypeTraits<Arg0Type>::CType f_val,
             typename TypeTraits<Arg1Type>::CType s_val) {
           valid_func(*g++, f_val, s_val);
@@ -1068,6 +1086,7 @@ struct GroupedMeanFinalImpl : public GroupedAggregator {
     return Status::OK();
   }
 
+  // Based on GroupedReducingAggregator::Finalize()
   Result<Datum> Finalize() override {
     // std::shared_ptr<Buffer> null_bitmap = nullptr;
 
