@@ -997,7 +997,9 @@ VisitGroupedTwoValues(const ExecSpan& batch, ConsumeValue&& valid_func,
   //     Array[0,1,2,3, ..., N-1]
   auto g = batch[1].array.GetValues<uint32_t>(1);
   if (batch[0].is_array()) {
-    auto sliced_length = batch[1].array.length;
+    // auto sliced_length = batch[1].array.length;
+    auto sliced_length = std::min(batch[0].length(), batch[1].length());
+
     auto array_span0 =
         batch[0].array.child_data[0].ToArrayData()->Slice(*g, sliced_length);
     auto array_span1 =
