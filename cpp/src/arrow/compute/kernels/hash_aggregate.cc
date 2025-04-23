@@ -994,16 +994,15 @@ VisitGroupedTwoValues(const ExecSpan& batch, ConsumeValue&& valid_func,
   // -- child 0 type: double
   // -- child 1 type: int64
   //     1:
-  //     Array[0,1,2,3, ..., N-1]
-  auto g = batch[1].array.GetValues<uint32_t>(1);
-  if (batch[0].is_array()) {
-    // auto sliced_length = batch[1].array.length;
-    auto sliced_length = std::min(batch[0].length(), batch[1].length());
+  //     Array[0,1,2,3, ..., N-1] <- group index
+  if (batch[0].is_array() && batch.length > 0) {
+    auto g = batch[1].array.GetValues<uint32_t>(1);
+    auto offset = batch[0].array.ToArrayData()->offset;
 
     auto array_span0 =
-        batch[0].array.child_data[0].ToArrayData()->Slice(*g, sliced_length);
+        batch[0].array.child_data[0].ToArrayData()->Slice(offset, batch.length);
     auto array_span1 =
-        batch[0].array.child_data[1].ToArrayData()->Slice(*g, sliced_length);
+        batch[0].array.child_data[1].ToArrayData()->Slice(offset, batch.length);
     VisitTwoArrayValuesInline<Arg0Type, Arg1Type>(
         // batch[0].array.child_data[0], batch[0].array.child_data[1],
         *array_span0, *array_span1,

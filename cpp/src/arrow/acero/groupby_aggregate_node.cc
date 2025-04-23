@@ -368,19 +368,26 @@ Status GroupByNode::InputReceived(ExecNode* input, ExecBatch batch) {
 
   DCHECK_EQ(input, inputs_[0]);
 
-  auto handler = [this](const ExecBatch& full_batch, const Segment& segment) {
-    if (!segment.extends && segment.offset == 0)
-      RETURN_NOT_OK(OutputResult(/*is_last=*/false));
-    auto exec_batch = full_batch.Slice(segment.offset, segment.length);
-    auto batch = ExecSpan(exec_batch);
-    RETURN_NOT_OK(Consume(batch));
-    RETURN_NOT_OK(
-        ExtractSegmenterValues(&segmenter_values_, exec_batch, segment_key_field_ids_));
-    if (!segment.is_open) RETURN_NOT_OK(OutputResult(/*is_last=*/false));
-    return Status::OK();
-  };
-  ARROW_RETURN_NOT_OK(
-      HandleSegments(segmenter_.get(), batch, segment_key_field_ids_, handler));
+  // auto handler = [this](const ExecBatch& full_batch, const Segment& segment) {
+  //   if (!segment.extends && segment.offset == 0)
+  //     RETURN_NOT_OK(OutputResult(/*is_last=*/false));
+  //     ARROW_LOG(INFO) << "full_batch: " << full_batch.ToString();
+  //     ARROW_LOG(INFO) << "segment.offset: " << segment.offset;
+  //     ARROW_LOG(INFO) << "segment.length: " << segment.length;
+  //   auto exec_batch = full_batch.Slice(segment.offset, segment.length);
+  //   auto batch = ExecSpan(exec_batch);
+  //   RETURN_NOT_OK(Consume(batch));
+  //   RETURN_NOT_OK(
+  //       ExtractSegmenterValues(&segmenter_values_, exec_batch,
+  //       segment_key_field_ids_));
+  //   if (!segment.is_open) RETURN_NOT_OK(OutputResult(/*is_last=*/false));
+  //   return Status::OK();
+  // };
+  // ARROW_RETURN_NOT_OK(
+  //     HandleSegments(segmenter_.get(), batch, segment_key_field_ids_, handler));
+
+  auto exec_span = ExecSpan(batch);
+  RETURN_NOT_OK(Consume(exec_span));
 
   if (input_counter_.Increment()) {
     ARROW_RETURN_NOT_OK(OutputResult(/*is_last=*/true));
